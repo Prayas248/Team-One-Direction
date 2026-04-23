@@ -1,0 +1,10 @@
+# requirements.txt - Minimal for Stage 3 & 4
+
+# Core
+python-dotenv==1.0.0
+
+# LLM APIs
+anthropic==0.30.0
+groq==0.4.2
+
+# That's it for Stage 3 & 4!
