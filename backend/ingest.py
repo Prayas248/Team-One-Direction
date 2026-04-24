@@ -1,5 +1,4 @@
 # backend/ingest.py
-
 import pdfplumber
 import re
 import sys
@@ -49,14 +48,10 @@ NOISE_PATTERNS = [
 
 def clean_encoding_artifacts(text: str) -> str:
     """Remove PDF encoding artifacts like (cid:X) and normalize spaces."""
-    # Remove encoding markers: (cid:123), (cid:1), etc.
     text = re.sub(r"\(cid:\d+\)", "", text)
-    # Remove other common PDF artifacts
     text = re.sub(r"[\x00-\x08\x0b-\x0c\x0e-\x1f]", "", text)
-    # Normalize whitespace: collapse multiple spaces, preserve single newlines
     text = re.sub(r" +", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    # Fix common ligatures and symbols that might appear as artifacts
     text = text.replace("ﬁ", "fi").replace("ﬂ", "fl")
     text = text.replace("ﬀ", "ff").replace("ﬃ", "ffi").replace("ﬄ", "ffl")
     return text
@@ -73,45 +68,109 @@ def is_noise_line(line: str) -> bool:
     return False
 
 
+def _is_header(line: str) -> bool:
+    """
+    Improved header detection:
+    - Strips leading numbering (1. / I. / 1.2 etc.)
+    - Matches against SECTION_HEADERS
+    - Also catches ALL CAPS short lines as headers
+    - Relaxed word limit (was <=6, now <=8)
+    """
+    stripped = re.sub(r"^([\dIVXivx]+[\.\d]*\.?)\s*", "", line.strip())
+    lowered = stripped.lower().strip()
+
+    # Must have some content
+    if len(lowered) < 3:
+        return False
+
+    # Match against known section headers (relaxed word limit)
+    if (
+        any(re.match(h + r"\s*$", lowered) for h in SECTION_HEADERS)
+        and len(lowered.split()) <= 8
+    ):
+        return True
+
+    # ALL CAPS short line = likely a heading in many academic PDFs
+    if (
+        stripped.isupper()
+        and 2 <= len(stripped.split()) <= 8
+        and len(stripped) >= 4
+    ):
+        return True
+
+    return False
+
+
 def extract_text(pdf_path: str) -> Dict[str, str]:
     """
     Extract text from a PDF and split into named sections.
-    Falls back to 'preamble' if no headers detected.
+    Falls back to page-level split if no headers detected.
     """
     sections = {}
     current_section = "preamble"
     buffer = []
 
     with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            # Try extraction with char_margin to preserve word spacing better
-            # layout=False extracts text in reading order without layout preservation
+        all_pages = pdf.pages
+
+        for page in all_pages:
             text = page.extract_text(
                 x_tolerance=3,
                 y_tolerance=3,
                 layout=False,
-                char_margin=10  # Better word spacing detection
+                char_margin=10
             ) or ""
-            # Clean encoding artifacts and normalize spacing
             text = clean_encoding_artifacts(text)
+
             for line in text.split("\n"):
                 if is_noise_line(line):
                     continue
-                stripped = re.sub(r"^([\dIVXivx]+[\.\d]*)\s*", "", line.strip()).lower()
-                is_header = (
-                    any(re.match(h, stripped) for h in SECTION_HEADERS)
-                    and len(stripped.split()) <= 6
-                    and len(stripped) >= 4
-                )
-                if is_header:
-                    sections[current_section] = " ".join(buffer)
-                    current_section = stripped
+
+                if _is_header(line):
+                    # Save previous buffer into current section
+                    body = " ".join(buffer).strip()
+                    if body:
+                        if current_section in sections:
+                            sections[current_section] += " " + body
+                        else:
+                            sections[current_section] = body
+                    # Start new section using normalised name
+                    current_section = re.sub(
+                        r"^([\dIVXivx]+[\.\d]*\.?)\s*", "", line.strip()
+                    ).lower().strip()
                     buffer = []
                 else:
-                    buffer.append(line)
+                    buffer.append(line.strip())
 
-    sections[current_section] = " ".join(buffer)
-    return {k: v for k, v in sections.items() if v.strip()}
+        # Flush final buffer
+        body = " ".join(buffer).strip()
+        if body:
+            if current_section in sections:
+                sections[current_section] += " " + body
+            else:
+                sections[current_section] = body
+
+    result = {k: v for k, v in sections.items() if v.strip()}
+
+    # ── Fallback: no headers found → split by page ───────────────────────────
+    if len(result) <= 1:
+        result = {}
+        with pdfplumber.open(pdf_path) as pdf:
+            for i, page in enumerate(pdf.pages, 1):
+                raw = page.extract_text(
+                    x_tolerance=3,
+                    y_tolerance=3,
+                    layout=False,
+                    char_margin=10
+                ) or ""
+                raw = clean_encoding_artifacts(raw)
+                # Filter noise lines
+                lines = [l.strip() for l in raw.split("\n") if not is_noise_line(l)]
+                text = " ".join(lines).strip()
+                if text:
+                    result[f"page_{i}"] = text
+
+    return result
 
 
 def chunk_text(text: str, size: int = 200, overlap: int = 50) -> List[str]:
