@@ -1,0 +1,15 @@
+# Environment variables
+python-dotenv==1.0.0
+
+# HTTP requests
+requests==2.31.0
+
+# PDF processing
+pdfplumber==0.10.3
+
+# Vector database (requires NumPy <2.0)
+chromadb==0.4.22
+numpy<2.0
+
+# Embeddings model
+sentence-transformers==2.3.1

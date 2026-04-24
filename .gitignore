@@ -36,3 +36,8 @@ data/
 
 # Git
 .git/
+# Python virtual environment
+/venv
+.env
+
+
