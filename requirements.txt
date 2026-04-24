@@ -7,4 +7,12 @@ python-dotenv==1.0.0
 anthropic==0.30.0
 groq==0.4.2
 
+pdfplumber==0.11.4 
+textstat==0.7.3 
+# PDF text extraction (spec Section 3.3)
+# Readability scoring — Flesch-Kincaid (spec Section
+numpy==1.26.4 # Z-score computation
+requests==2.32.3 # PDF download in test suite
+pytest==8.1.1 # Test runner
+
 # That's it for Stage 3 & 4!
