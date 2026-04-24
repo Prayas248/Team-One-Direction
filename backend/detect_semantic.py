@@ -1,137 +1,167 @@
-"""
-Layer 2: Semantic Plagiarism Detection (SBERT + ChromaDB)
-
-Detects paraphrased text and semantic reuse using pre-computed SBERT embeddings
-stored in ChromaDB. This layer catches rephrasing that Layer 1 (TF-IDF) misses.
-
-Research: Reimers & Gurevych (2019), Bohra & Barwar (2022), PlagiSense (2025)
-"""
-
-import chromadb
+# Debugging imports
+print("Importing SentenceTransformer...")
 from sentence_transformers import SentenceTransformer
-from typing import List, Dict
+print("SentenceTransformer imported successfully.")
 
+print("Connecting to ChromaDB...")
+import chromadb
+print("ChromaDB connected successfully.")
 
-def detect_semantic(
-    chunks: List[str],
-    threshold: float = 0.75,
-    top_k: int = 3,
-    corpus_path: str = "data/chroma_index",
-    model_name: str = "all-MiniLM-L6-v2"
-) -> List[Dict]:
+import os
+
+# Load the SBERT model
+print("Loading SBERT model...")
+MODEL = SentenceTransformer('all-MiniLM-L6-v2')  # Pre-trained SBERT model
+print("SBERT model loaded successfully.")
+
+# Function to verify PDF file input
+def verify_pdf_file(pdf_path: str):
     """
-    Layer 2: SBERT semantic similarity detection.
-    
-    Encodes manuscript chunks using SBERT embeddings and queries ChromaDB
-    for semantically similar corpus chunks using nearest-neighbor search.
+    Verify if the PDF file exists and is accessible.
     
     Args:
-        chunks: List of manuscript text chunks to analyze
-        threshold: Minimum similarity score (0.75 = MEDIUM, per spec)
-        top_k: Number of top matches to retrieve per chunk
-        corpus_path: Path to ChromaDB persistent storage
-        model_name: SBERT model identifier
+        pdf_path (str): Path to the PDF file.
     
     Returns:
-        List of flagged passages:
-        {
-            'chunk': str,           # Original manuscript chunk
-            'score': float,         # Cosine similarity (0.00-1.00)
-            'matched': str,         # Matched corpus chunk
-            'meta': {               # Corpus metadata
-                'title': str,
-                'doi': str,
-                'domain': str,
-                'year': str
-            },
-            'layer': 2,             # Detection layer
-            'type': 'Paraphrase/Semantic'
-        }
-    
-    Raises:
-        FileNotFoundError: If ChromaDB index not found
-        RuntimeError: If corpus is empty
+        bool: True if the file is accessible, False otherwise.
     """
+    print(f"Checking if PDF file exists at: {pdf_path}")
+    if os.path.exists(pdf_path):
+        print("PDF file is accessible.")
+        return True
+    else:
+        print("PDF file not found. Please check the file path.")
+        return False
+
+# Function to verify ChromaDB index
+def verify_chromadb_index(index_path: str):
+    """
+    Verify if the ChromaDB index exists and is accessible.
     
-    # ──────────────────────────────────────────────────────────────
-    # Step 1: Load SBERT model
-    # ──────────────────────────────────────────────────────────────
+    Args:
+        index_path (str): Path to the ChromaDB index.
+    
+    Returns:
+        bool: True if the index is accessible, False otherwise.
+    """
+    print(f"Checking if ChromaDB index exists at: {index_path}")
+    if os.path.exists(index_path):
+        print("ChromaDB index is accessible.")
+        return True
+    else:
+        print("ChromaDB index not found. Please check the index path.")
+        return False
+
+# Function to check ChromaDB corpus collection
+def check_chromadb_corpus(index_path: str):
+    """
+    Check if the ChromaDB corpus collection is available and contains data.
+    
+    Args:
+        index_path (str): Path to the ChromaDB index.
+    
+    Returns:
+        bool: True if the corpus collection is valid, False otherwise.
+    """
     try:
-        model = SentenceTransformer(model_name)
+        client = chromadb.PersistentClient(path=index_path)
+        col = client.get_collection('corpus')
+        docs = col.get()
+        print(f"Number of documents in corpus: {len(docs['documents'])}")
+        if len(docs['documents']) > 0:
+            print("ChromaDB corpus collection is valid and contains data.")
+            return True
+        else:
+            print("ChromaDB corpus collection is empty.")
+            return False
     except Exception as e:
-        raise RuntimeError(
-            f"Failed to load SBERT model '{model_name}': {e}\n"
-            f"Install: pip install sentence-transformers"
-        )
+        print(f"Error accessing ChromaDB corpus collection: {e}")
+        return False
+
+# Semantic detection function
+def detect_semantic(chunks: list, threshold=0.75, top_k=3) -> list:
+    """
+    SBERT embeddings + ChromaDB nearest-neighbor search for semantic detection.
     
-    # ──────────────────────────────────────────────────────────────
-    # Step 2: Connect to ChromaDB and retrieve corpus
-    # ──────────────────────────────────────────────────────────────
-    try:
-        client = chromadb.PersistentClient(path=corpus_path)
-        collection = client.get_collection("corpus")
-    except Exception as e:
-        raise FileNotFoundError(
-            f"ChromaDB corpus not found at '{corpus_path}'. "
-            f"Run: python scripts/build_corpus.py\n"
-            f"Error: {e}"
-        )
+    Args:
+        chunks (list): List of text chunks from the manuscript.
+        threshold (float): Similarity threshold for flagging matches.
+        top_k (int): Number of top matches to retrieve for each chunk.
     
-    corpus_data = collection.get(include=["documents", "metadatas", "embeddings"])
-    corpus_docs = corpus_data["documents"]
-    corpus_meta = corpus_data["metadatas"]
+    Returns:
+        list: Flags containing information about detected semantic matches.
+    """
+    # Verify ChromaDB index
+    index_path = 'data/chroma_index'
+    if not verify_chromadb_index(index_path):
+        print("ChromaDB index verification failed. Exiting.")
+        return []
+
+    # Check ChromaDB corpus collection
+    if not check_chromadb_corpus(index_path):
+        print("ChromaDB corpus collection check failed. Exiting.")
+        return []
+
+    # Connect to the ChromaDB persistent client
+    print("Connecting to ChromaDB persistent client...")
+    client = chromadb.PersistentClient(path=index_path)
+    print("Connected to ChromaDB persistent client successfully.")
     
-    if not corpus_docs:
-        raise RuntimeError("Corpus is empty. Run build_corpus.py first.")
-    
-    # ──────────────────────────────────────────────────────────────
-    # Step 3: Encode manuscript chunks using SBERT
-    # ──────────────────────────────────────────────────────────────
-    try:
-        chunk_embeddings = model.encode(
-            chunks,
-            batch_size=32,
-            show_progress_bar=False,
-            convert_to_tensor=False
-        )
-    except Exception as e:
-        raise RuntimeError(f"SBERT encoding failed: {e}")
-    
-    # ──────────────────────────────────────────────────────────────
-    # Step 4: Query ChromaDB for nearest neighbors
-    # ──────────────────────────────────────────────────────────────
-    flags = []
-    
-    for chunk_idx, chunk_embedding in enumerate(chunk_embeddings):
-        # Query ChromaDB nearest-neighbor search
-        results = collection.query(
-            query_embeddings=[chunk_embedding.tolist()],
-            n_results=top_k
-        )
-        
-        distances = results["distances"][0]
-        matched_docs = results["documents"][0]
-        matched_metas = results["metadatas"][0]
-        matched_indices = results["ids"][0]  # Get corpus document IDs
-        
-        # ChromaDB cosine space: distance = 1 - cosine_similarity
-        for dist, matched_doc, matched_meta, matched_id in zip(distances, matched_docs, matched_metas, matched_indices):
-            similarity = 1 - dist  # Convert cosine distance to similarity
-            
+    col = client.get_collection('corpus')  # Reference corpus collection
+    print("Retrieved reference corpus collection from ChromaDB.")
+
+    flags = []  # List to store flagged matches
+
+    # Encode the manuscript chunks into embeddings
+    print("Encoding manuscript chunks into embeddings...")
+    embeds = MODEL.encode(chunks, batch_size=32, show_progress_bar=True)
+    print("Manuscript chunks encoded successfully.")
+
+    # Perform nearest-neighbor search for each chunk
+    print("Performing nearest-neighbor search for each chunk...")
+    for i, (chunk, embed) in enumerate(zip(chunks, embeds)):
+        results = col.query(query_embeddings=[embed.tolist()], n_results=top_k)
+
+        # Process the results
+        for dist, doc, meta in zip(
+            results['distances'][0], results['documents'][0], results['metadatas'][0]
+        ):
+            # Convert L2 distance to cosine similarity
+            similarity = 1 - (dist / 2)
             if similarity >= threshold:
-                # Extract corpus chunk index from metadata
-                corpus_chunk_idx = matched_meta.get('chunk_index', 0)
-                
                 flags.append({
-                    'chunk': chunks[chunk_idx],           # Actual manuscript chunk
-                    'chunk_index': chunk_idx,             # Position in manuscript
-                    'score': float(similarity),
-                    'matched': matched_doc,
-                    'matched_index': corpus_chunk_idx,    # Position in corpus
-                    'meta': matched_meta,                 # Corpus metadata
-                    'layer': 2,
-                    'type': 'Paraphrase/Semantic'
+                    'chunk': chunk,  # The manuscript chunk
+                    'score': similarity,  # Similarity score
+                    'matched': doc,  # Matched source document
+                    'meta': meta,  # Metadata of the matched source
+                    'layer': 2,  # Detection layer (Semantic)
+                    'type': 'Paraphrase/Semantic'  # Type of match
                 })
-    
+
+    print("Nearest-neighbor search completed.")
     return flags
 
+# Example usage
+if __name__ == "__main__":
+    # Directory path for papers
+    papers_path = "/Users/anusripriya.s/Documents/one direction/Team-One-Direction/papers"
+    
+    # Verify directory
+    if os.path.exists(papers_path):
+        print("Processing PDF files in the directory...")
+        for file_name in os.listdir(papers_path):
+            if file_name.endswith(".pdf"):
+                pdf_path = os.path.join(papers_path, file_name)
+                print(f"Processing file: {pdf_path}")
+                
+                # Verify PDF file
+                if verify_pdf_file(pdf_path):
+                    print("Proceeding with semantic detection...")
+                    # Example chunks (replace with actual chunks from your PDF processing)
+                    chunks = ["This is a sample chunk of text.", "Another chunk of text for testing."]
+                    flags = detect_semantic(chunks)
+                    print(f"Detection completed for {file_name}. Flags:", flags)
+                else:
+                    print(f"PDF file verification failed for {file_name}. Skipping.")
+    else:
+        print("Directory not found. Please check the path.")
