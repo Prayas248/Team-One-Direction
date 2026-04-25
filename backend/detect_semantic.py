@@ -8,6 +8,7 @@ import chromadb
 print("ChromaDB connected successfully.")
 
 import os
+from config.settings import settings
 
 # Load the SBERT model
 print("Loading SBERT model...")
@@ -91,8 +92,10 @@ def detect_semantic(chunks: list, threshold=0.75, top_k=3) -> list:
     Returns:
         list: Flags containing information about detected semantic matches.
     """
+    from config.settings import settings
+    
     # Verify ChromaDB index
-    index_path = 'data/chroma_index'
+    index_path = settings.CHROMA_INDEX_PATH
     if not verify_chromadb_index(index_path):
         print("ChromaDB index verification failed. Exiting.")
         return []

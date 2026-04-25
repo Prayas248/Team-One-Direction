@@ -123,7 +123,7 @@ def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
     print(f"  🟡 MEDIUM: {tier_counts['MEDIUM']}")
     print(f"  🟢 LOW:    {tier_counts['LOW']}")
     
-    # Compute composite score: weighted sum of top-5 flags
+    # Compute composite score: weighted average of top-5 flags
     weights = {
         'HIGH': 1.0,
         'MEDIUM': 0.6,
@@ -137,12 +137,20 @@ def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
     if not top5:
         composite_score = 0
     else:
-        # Calculate weighted average
+        # Calculate proper weighted average: sum(score * weight) / sum(weights) * 100
         weighted_sum = sum(
-            f['score'] * weights[f['tier']] * 100
+            f['score'] * weights[f['tier']]
             for f in top5
         )
-        composite_score = min(100, int(weighted_sum / len(top5)))
+        sum_of_weights = sum(
+            weights[f['tier']]
+            for f in top5
+        )
+        # Guard against division by zero (if all flags are tier 'NONE')
+        if sum_of_weights > 0:
+            composite_score = min(100, int((weighted_sum / sum_of_weights) * 100))
+        else:
+            composite_score = 0
     
     print(f"\nComposite Risk Score: {composite_score}/100")
     print(f"  (Based on top {len(top5)} flags)")

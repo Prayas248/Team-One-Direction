@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
 import scipy.sparse as sp
+from config.settings import settings
 
 # Constants for chunking
 CHUNK_SIZE = 200   # words per chunk
@@ -84,8 +85,8 @@ def detect_lexical(
     chunks: List[str],
     threshold: float = 0.55,
     corpus_limit: int = None,
-    tfidf_path: str = "data/tfidf_corpus",
-    chroma_path: str = "data/chroma_index"
+    tfidf_path: str = None,
+    chroma_path: str = None
 ) -> List[Dict]:
     """
     Layer 1: TF-IDF lexical similarity detection.
@@ -102,8 +103,8 @@ def detect_lexical(
         chunks: List of manuscript text chunks to analyze
         threshold: Minimum similarity score (0.55 = LOW tier per spec)
         corpus_limit: Max corpus chunks to compare (None = all)
-        tfidf_path: Path to pre-fitted TF-IDF artifacts
-        chroma_path: Path to ChromaDB (for metadata only)
+        tfidf_path: Path to pre-fitted TF-IDF artifacts (uses config if None)
+        chroma_path: Path to ChromaDB (uses config if None)
     
     Returns:
         List of flagged passages with structure:
@@ -129,6 +130,12 @@ def detect_lexical(
         FileNotFoundError: If pre-fitted artifacts not found
         RuntimeError: If corpus is empty
     """
+    
+    # Use config paths if not provided
+    if tfidf_path is None:
+        tfidf_path = settings.TFIDF_CORPUS_PATH
+    if chroma_path is None:
+        chroma_path = settings.CHROMA_INDEX_PATH
     
     # ──────────────────────────────────────────────────────────────
     # Step 1: Load pre-fitted TF-IDF vectorizer
