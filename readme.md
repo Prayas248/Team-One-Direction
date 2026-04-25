@@ -7,7 +7,7 @@
 ---
 
 ---
-# 🚀 PRSE Quick Start Guide
+# PRSE Quick Start Guide
 
 ## 30-Second Setup
 
@@ -35,10 +35,10 @@ Open: **http://localhost:8501**
 1. **Upload** a PDF manuscript
 2. Click **"🔍 Analyze for Plagiarism"**
 3. Watch progress through 4 stages:
-   - 📖 Extraction (10%)
-   - ⚙️ Parallel detection (40%)
-   - 📊 Risk scoring (70%)
-   - 📝 Explanations (100%)
+   - Extraction (10%)
+   - Parallel detection (40%)
+   - Risk scoring (70%)
+   - Explanations (100%)
 4. View results:
    - **Risk score** (0-100)
    - **Flagged passages** with explanations
