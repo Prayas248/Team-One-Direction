@@ -25,24 +25,6 @@ source venv/bin/activate
 streamlit run frontend/app.py
 ```
 
-### Browser
-Open: **http://localhost:8501**
-
----
-
-## How to Use
-
-1. **Upload** a PDF manuscript
-2. Click **"🔍 Analyze for Plagiarism"**
-3. Watch progress through 4 stages:
-   - Extraction (10%)
-   - Parallel detection (40%)
-   - Risk scoring (70%)
-   - Explanations (100%)
-4. View results:
-   - **Risk score** (0-100)
-   - **Flagged passages** with explanations
-   - **Detection breakdown** (L1, L2, L3)
 
 ---
 
