@@ -1,18 +1,31 @@
-# requirements.txt - Minimal for Stage 3 & 4
+# requirements.txt - Complete dependencies for all 4 stages
 
-# Core
+# Environment
 python-dotenv==1.0.0
 
 # LLM APIs
 anthropic==0.30.0
 groq==0.4.2
 
-pdfplumber==0.11.4 
-textstat==0.7.3 
-# PDF text extraction (spec Section 3.3)
-# Readability scoring — Flesch-Kincaid (spec Section
-numpy==1.26.4 # Z-score computation
-requests==2.32.3 # PDF download in test suite
-pytest==8.1.1 # Test runner
+# PDF & Text Processing
+pdfplumber==0.11.4
+textstat==0.7.3
 
-# That's it for Stage 3 & 4!
+# Vector Databases & Search
+chromadb==0.4.22
+chroma-hnswlib==0.7.3
+
+# ML & NLP
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.5.0
+sentence-transformers==2.3.1
+
+# Utilities
+requests==2.32.3
+
+# Testing
+pytest==8.1.1
+
+# Parallelization
+# (built-in: concurrent.futures)
