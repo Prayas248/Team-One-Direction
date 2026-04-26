@@ -65,14 +65,7 @@ Open: **http://localhost:8501**
 
 ---
 
-## Test Files
 
-Sample PDFs to test:
-- `papers/paper.pdf` - Expected: ~40/100
-- `papers/1706.03762v7-2.pdf` - Transformer paper
-- `papers/23092015_Double_Column_Research_Paper_Format.pdf`
-
----
 
 ## Architecture
 
@@ -152,30 +145,3 @@ STAGE 4: EXPLAINABILITY + REPORT
   Module: explain.py (⚠️ at repo root, needs move to backend/)
   Status: ⏳ EXISTS (needs integration)
 ```
-
----
-
-## Key Architecture Decisions
-
-### ✅ TF-IDF Strategy: Compute On-The-Fly
-- **What**: Calculate TF-IDF vectors during analysis, don't pre-store
-- **Why**: TF-IDF is fast math (~50-100ms), not expensive ML like SBERT
-- **Impact**: Simpler architecture, no duplicate storage, single source of truth
-- **Reference**: [LAYER1_INTEGRATION_GUIDE.md](LAYER1_INTEGRATION_GUIDE.md#architecture-decision-summary)
-
-### ✅ ChromaDB as Single Source of Truth
-- **What**: All corpus data (documents, metadata, embeddings) lives in ChromaDB
-- **Why**: Layer 1 reads documents, Layer 2 reads embeddings, both from same index
-- **Impact**: No sync issues, easier maintenance, natural data flow
-
-### ✅ Reproducibility Fix Applied (24 April 2026)
-- **Issue**: TF-IDF vocabulary indices changed between runs
-- **Fix**: Fit vectorizer on **CORPUS ONLY**, transform manuscript separately
-- **Result**: Identical inputs now produce identical outputs (FR-7 compliant)
-- **Test**: `scripts/test_reproducibility.py` (passes all 3 runs)
-- **Details**: See [LAYER1_REPRODUCIBILITY_FIX.md](LAYER1_REPRODUCIBILITY_FIX.md)
-
-### ✅ Threshold Consistency (All Layers)
-- **LOW**: 0.55–0.69 (flagged, needs review)
-- **MEDIUM**: 0.70–0.84 (significant similarity)
-- **HIGH**: ≥0.85 (very likely plagiarism signal)
