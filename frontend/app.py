@@ -13,16 +13,24 @@ st.set_page_config(
 
 # -------- SIDEBAR --------
 with st.sidebar:
-    st.header("About")
-    st.markdown("""Plagiarism Risk Signal Engine
-    
-    Analyzes academic manuscripts using three parallel detection layers:
-    - **Layer 1**: Lexical (TF-IDF) - verbatim matches
-    - **Layer 2**: Semantic (SBERT) - paraphrase detection
-    - **Layer 3**: Intrinsic (Stylometry) - style anomalies
+    st.header("About PRSE")
+    st.markdown("""
+**Plagiarism Risk Signal Engine**
+
+A three-layer detection system analyzing academic manuscripts:
+
+**Layer 1 — Lexical Detection**
+Finds verbatim and near-exact matches using TF-IDF.
+
+**Layer 2 — Semantic Detection**
+Detects paraphrased content using neural embeddings (SBERT).
+
+**Layer 3 — Intrinsic Detection**
+Identifies style anomalies via statistical analysis.
+
+---
     """)
-    st.divider()
-    st.markdown("**Processing**: 76-paper corpus, parallel detection")
+    st.info("Corpus: 76 papers, 3,694 chunks processed in parallel")
 
 # -------- TITLE & INTRO --------
 st.title("Plagiarism Risk Signal Engine")
@@ -148,7 +156,7 @@ if uploaded_pdf:
                             layer = flag['layer']
                             
                             # Color coding
-                            tier_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢", "NONE": "⚪"}.get(tier, "⚪")
+                            tier_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(tier, "🟢")
                             
                             with st.expander(
                                 f"{tier_emoji} [{tier}] Layer {layer} — Score: {score:.3f} — {flag.get('type', 'Unknown')}"
@@ -171,10 +179,33 @@ if uploaded_pdf:
                                 
                                 # Style anomaly info (for L3)
                                 if layer == 3:
-                                    st.write("**🎨 Style Anomaly Details:**")
-                                    st.metric("Section", flag.get("section", "Unknown"))
-                                    st.metric("Feature", flag.get("feature", "Unknown"))
-                                    st.metric("Z-Score", f"{flag.get('z_score', 0):.2f}")
+                                    st.write("**Style Anomaly Details:**")
+                                    
+                                    # Human-readable feature labels
+                                    feature_labels = {
+                                        "ttr": "Vocabulary Richness (Type-Token Ratio)",
+                                        "avg_sent_len": "Average Sentence Length",
+                                        "readability": "Readability Score (Flesch-Kincaid)"
+                                    }
+                                    
+                                    section = flag.get("section", "Unknown")
+                                    feature = flag.get("feature", "Unknown")
+                                    z_score = flag.get("z_score", 0)
+                                    
+                                    st.metric("Section", section)
+                                    st.metric("Anomaly Type", feature_labels.get(feature, feature))
+                                    st.metric("Z-Score", f"{z_score:.2f}σ")
+                                    
+                                    # Show statistical context if available
+                                    if flag.get("meta"):
+                                        meta = flag["meta"]
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            st.caption(f"**This section:** {meta.get('feature_value', 'N/A')}")
+                                        with col2:
+                                            st.caption(f"**Paper avg:** {meta.get('paper_mean', 'N/A')}")
+                                        with col3:
+                                            st.caption(f"**Std dev:** {meta.get('paper_std', 'N/A')}")
                                 
                                 # Explanation
                                 if flag.get("explanation"):

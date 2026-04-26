@@ -1,181 +1,120 @@
-# PRSE Codebase Guide for AI Agents
+# PRSE — Plagiarism Risk Signal Engine
 
-## Project Overview
-
-**Plagiarism Risk Signal Engine** — An AI-powered editorial tool for detecting plagiarism in academic manuscripts. Unlike verdict tools, PRSE surfaces risk signals with full explainability to support human editorial judgment.
+An AI-powered editorial tool for detecting plagiarism in academic manuscripts. PRSE surfaces risk signals with full explainability to support human editorial judgment.
 
 ---
 
----
-# 🚀 PRSE Quick Start Guide
+## Quick Start
 
-## 30-Second Setup
+### Setup (30 seconds)
 
-### Terminal 1 - Start Flask API
 ```bash
 cd ~/Documents/Team-One-Direction
 source venv/bin/activate
+```
+
+**Terminal 1 — Start API:**
+```bash
 python api.py
 ```
 
-### Terminal 2 - Start Streamlit UI  
+**Terminal 2 — Start UI:**
 ```bash
-cd ~/Documents/Team-One-Direction
-source venv/bin/activate
 streamlit run frontend/app.py
 ```
 
-### Browser
-Open: **http://localhost:8501**
+Then open: http://localhost:8501
 
 ---
 
 ## How to Use
 
 1. **Upload** a PDF manuscript
-2. Click **"🔍 Analyze for Plagiarism"**
-3. Watch progress through 4 stages:
-   - 📖 Extraction (10%)
-   - ⚙️ Parallel detection (40%)
-   - 📊 Risk scoring (70%)
-   - 📝 Explanations (100%)
+2. Click **"Analyze for Plagiarism"**
+3. Monitor progress through 4 stages:
+   - Extraction (extracting text & chunking)
+   - Parallel detection (3 layers running simultaneously)
+   - Risk scoring (aggregating flags)
+   - Explanations (generating editorial notes)
 4. View results:
-   - **Risk score** (0-100)
-   - **Flagged passages** with explanations
-   - **Detection breakdown** (L1, L2, L3)
+   - Overall risk score (0-100)
+   - Flagged passages with detailed explanations
+   - Detection breakdown (L1, L2, L3 counts)
 
 ---
 
-## What You Get
+## Understanding Results
 
-### Risk Score Interpretation
-| Score | Status | Meaning |
-|-------|--------|---------|
-| 80-100 | 🔴 HIGH | Substantial plagiarism signals |
-| 50-79 | 🟡 MEDIUM | Concerning similarities |
-| 25-49 | 🟢 LOW | Minor similarities |
-| 0-24 | ✅ CLEAN | No signals detected |
+### Risk Score Scale
+| Score | Risk Level | Interpretation |
+|-------|------------|----------------|
+| 85-100 | 🔴 HIGH | Substantial plagiarism signals |
+| 70-84 | 🟡 MEDIUM | Concerning similarities |
+| 55-69 | 🟢 LOW | Minor similarities |
+| 0-54 | CLEAN | No significant signals |
 
-### Each Flag Shows
-- **Source passage** (what submitted text matched)
-- **Matched passage** (where it came from)
-- **Detection layer** (L1: lexical, L2: semantic, L3: style)
-- **Score** (0.0-1.0)
-- **Explanation** (why it's flagged)
+### Each Flagged Passage Shows
+- **Submitted Passage** — The text from your manuscript
+- **Matched Source** — Where it was found (L1 & L2 only)
+- **Detection Layer** — Which method caught it (Lexical/Semantic/Intrinsic)
+- **Score** — Confidence level (0.0-1.0)
+- **Explanation** — Why it was flagged (AI-generated editorial note)
 
----
-
-## Test Files
-
-Sample PDFs to test:
-- `papers/paper.pdf` - Expected: ~40/100
-- `papers/1706.03762v7-2.pdf` - Transformer paper
-- `papers/23092015_Double_Column_Research_Paper_Format.pdf`
+**For Style Anomalies (Layer 3):**
+- **Section** — Which part of the paper
+- **Anomaly Type** — What changed (vocabulary, sentence length, readability)
+- **Z-Score** — Statistical deviation from paper baseline
+- **Context** — This section's value vs paper average
 
 ---
 
-## Architecture
+## System Architecture
+
+### 4-Stage Pipeline
 
 ```
 Your PDF
    ↓
-Streamlit (frontend/app.py)
-   ↓ HTTP POST
+Streamlit Frontend (frontend/app.py)
+   ↓ HTTP POST /analyse
 Flask API (api.py)
    ↓
-Stage 1: Extract text + chunk
+Stage 1: Ingestion
+  └─ Extract sections, create chunks (backend/ingest.py)
    ↓
-Stage 2: Run 3 layers in parallel
-   ├─ Layer 1: TF-IDF (lexical)
-   ├─ Layer 2: SBERT (semantic)
-   └─ Layer 3: Stylometry (intrinsic)
+Stage 2: Parallel Detection (ThreadPoolExecutor)
+  ├─ Layer 1: Lexical — TF-IDF cosine similarity
+  ├─ Layer 2: Semantic — SBERT embeddings + ChromaDB search
+  └─ Layer 3: Intrinsic — Stylometry (z-score analysis)
    ↓
-Stage 3: Aggregate flags → compute score
+Stage 3: Risk Aggregation & Scoring (backend/score.py)
+  └─ Deduplicate, tier assign, weighted composite score
    ↓
-Stage 4: LLM explanations (with fallback)
+Stage 4: LLM Explanations (backend/explain.py)
+  └─ Groq API (with fallback templates)
    ↓
 Results JSON
    ↓
-Streamlit displays results
+Streamlit displays results with visualizations
 ```
 
----
+### Detection Layers
 
-## Performance
+**Layer 1 — Lexical (TF-IDF)**
+- Detects verbatim and near-exact matches
+- Pre-fitted vectorizer on 76-paper corpus (10K vocabulary)
+- Cosine similarity scoring
+- Thresholds: 0.55 (LOW), 0.70 (MEDIUM), 0.85 (HIGH)
 
-- **Small PDF (5 pages)**: ~0.5 seconds
-- **Medium PDF (20 pages)**: ~2 seconds
-- **Large PDF (50 pages)**: ~5 seconds
+**Layer 2 — Semantic (SBERT)**
+- Detects paraphrased and semantically similar content
+- Model: `all-MiniLM-L6-v2` (384-dimensional embeddings)
+- ChromaDB nearest-neighbor search (k=3)
+- Threshold: 0.75 for flagging
 
-Bottleneck: LLM explanation generation (2-5s per HIGH/MEDIUM flag)
-
----
-
-
-
-## Architecture: 4-Stage Pipeline
-
-```
-STAGE 1: INGESTION
-  Input: PDF manuscript
-  Output: Extracted sections + text chunks (200-word windows, 50-word overlap)
-  Module: backend/ingest.py
-  Status: ✅ COMPLETE
-
-STAGE 2: PARALLEL DETECTION (3 layers)
-  ├─ Layer 1 (TF-IDF): Verbatim/near-exact copy detection
-  │  Module: backend/detect_lexical.py
-  │  Approach: Compute on-the-fly from ChromaDB corpus
-  │  Status: ✅ WORKING
-  │
-  ├─ Layer 2 (SBERT): Paraphrase/semantic reuse detection
-  │  Module: backend/detect_semantic.py
-  │  Approach: Pre-computed embeddings in ChromaDB
-  │  Status: ⏳ TEMPLATE CREATED (needs debugging)
-  │
-  └─ Layer 3 (Intrinsic): Style shift detection (corpus-independent)
-     Module: detect_intrinsic.py (⚠️ at repo root, needs move to backend/)
-     Approach: Stylometric analysis (readability, TTR, sentence length)
-     Status: ✅ EXISTS
-  
-  Output: Merged flags from all 3 layers
-
-STAGE 3: RISK AGGREGATION
-  Input: All flags from Stage 2
-  Output: Deduplicated flags + composite risk score (0-100)
-  Module: score.py (⚠️ at repo root, needs move to backend/)
-  Status: ⏳ EXISTS (needs integration)
-  
-STAGE 4: EXPLAINABILITY + REPORT
-  Input: HIGH/MEDIUM flags
-  Output: Editorial explanations + risk dashboard
-  Module: explain.py (⚠️ at repo root, needs move to backend/)
-  Status: ⏳ EXISTS (needs integration)
-```
-
----
-
-## Key Architecture Decisions
-
-### ✅ TF-IDF Strategy: Compute On-The-Fly
-- **What**: Calculate TF-IDF vectors during analysis, don't pre-store
-- **Why**: TF-IDF is fast math (~50-100ms), not expensive ML like SBERT
-- **Impact**: Simpler architecture, no duplicate storage, single source of truth
-- **Reference**: [LAYER1_INTEGRATION_GUIDE.md](LAYER1_INTEGRATION_GUIDE.md#architecture-decision-summary)
-
-### ✅ ChromaDB as Single Source of Truth
-- **What**: All corpus data (documents, metadata, embeddings) lives in ChromaDB
-- **Why**: Layer 1 reads documents, Layer 2 reads embeddings, both from same index
-- **Impact**: No sync issues, easier maintenance, natural data flow
-
-### ✅ Reproducibility Fix Applied (24 April 2026)
-- **Issue**: TF-IDF vocabulary indices changed between runs
-- **Fix**: Fit vectorizer on **CORPUS ONLY**, transform manuscript separately
-- **Result**: Identical inputs now produce identical outputs (FR-7 compliant)
-- **Test**: `scripts/test_reproducibility.py` (passes all 3 runs)
-- **Details**: See [LAYER1_REPRODUCIBILITY_FIX.md](LAYER1_REPRODUCIBILITY_FIX.md)
-
-### ✅ Threshold Consistency (All Layers)
-- **LOW**: 0.55–0.69 (flagged, needs review)
-- **MEDIUM**: 0.70–0.84 (significant similarity)
-- **HIGH**: ≥0.85 (very likely plagiarism signal)
+**Layer 3 — Intrinsic (Stylometry)**
+- Detects writing style anomalies (corpus-independent)
+- Features: Type-Token Ratio (TTR), average sentence length, readability (Flesch-Kincaid)
+- Z-score statistical analysis against section baseline
+- Dynamic threshold: 2.0σ (adjusted for paper structure)
+- Score mapping: z=2.0 → 0.55 (LOW tier), z=4.0 → 1.0 (HIGH)

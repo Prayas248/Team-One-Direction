@@ -241,17 +241,26 @@ def _zscore_array(values: np.ndarray) -> Tuple[np.ndarray, float, float]:
 
 def _score_from_z(z: float) -> float:
     """
-    Normalise z-score magnitude to 0.0–1.0 for score.aggregate_flags().
+    Normalise z-score magnitude to 0.55–1.0 for score.aggregate_flags().
 
     This maps Layer 3 onto the same scale as Layers 1 and 2 so that
     score.py can apply tier thresholds uniformly across all layers.
 
-    z=2.0 → 0.50 (sits at LOW/MEDIUM boundary)
-    z=2.8 → 0.70 (MEDIUM tier threshold per spec)
-    z=3.4 → 0.85 (HIGH tier threshold per spec)
+    CORRECTED MAPPING (ensures z=2.0 threshold → LOW tier minimum 0.55):
+    z=2.0 → 0.55 (LOW tier minimum, matches flagging threshold)
+    z=2.8 → 0.73 (MEDIUM tier threshold)
+    z=3.4 → 0.87 (HIGH tier threshold)
     z=4.0 → 1.00 (capped at maximum)
+
+    Formula: score = (abs(z) - 2.0) / 2.0 * 0.45 + 0.55
+    Ensures linear mapping from z-threshold to full score range.
     """
-    return round(min(abs(z) / Z_NORMALISER, 1.0), 6)
+    abs_z = abs(z)
+    if abs_z < 2.0:
+        return 0.0  # Below threshold (should be filtered)
+    # Linear interpolation: z ∈ [2.0, 4.0] → score ∈ [0.55, 1.0]
+    score = (abs_z - 2.0) / 2.0 * 0.45 + 0.55
+    return round(min(max(score, 0.55), 1.0), 6)
 
 
 # ─── Main detection function ──────────────────────────────────────────────────

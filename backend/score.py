@@ -19,6 +19,7 @@ def assign_tier(score: float) -> str:
     
     Returns:
         Risk tier: 'HIGH', 'MEDIUM', or 'LOW'
+        (Below 0.55 should not reach scoring stage)
     """
     if score >= 0.85:
         return 'HIGH'
@@ -26,7 +27,7 @@ def assign_tier(score: float) -> str:
         return 'MEDIUM'
     if score >= 0.55:
         return 'LOW'
-    return 'NONE'  # Below threshold
+    return 'LOW'  # Fallback to LOW (should be filtered at source)
 
 def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
     """
@@ -70,7 +71,7 @@ def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
         return {
             'flags': [],
             'risk_score': 0,
-            'tier_counts': {'HIGH': 0, 'MEDIUM': 0, 'LOW': 0, 'NONE': 0},
+            'tier_counts': {'HIGH': 0, 'MEDIUM': 0, 'LOW': 0},
             'layer_breakdown': {
                 'layer1_lexical': 0,
                 'layer2_semantic': 0,
@@ -110,12 +111,11 @@ def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
     
     print(f"\nFlags after deduplication: {len(deduped)}")
     
-    # Calculate tier counts
+    # Calculate tier counts (NONE tier removed - only HIGH/MEDIUM/LOW)
     tier_counts = {
         'HIGH': sum(1 for f in deduped if f['tier'] == 'HIGH'),
         'MEDIUM': sum(1 for f in deduped if f['tier'] == 'MEDIUM'),
-        'LOW': sum(1 for f in deduped if f['tier'] == 'LOW'),
-        'NONE': sum(1 for f in deduped if f['tier'] == 'NONE')
+        'LOW': sum(1 for f in deduped if f['tier'] == 'LOW')
     }
     
     print(f"\nTier Distribution:")
@@ -127,8 +127,7 @@ def aggregate_flags(l1: List[Dict], l2: List[Dict], l3: List[Dict]) -> Dict:
     weights = {
         'HIGH': 1.0,
         'MEDIUM': 0.6,
-        'LOW': 0.3,
-        'NONE': 0.0
+        'LOW': 0.3
     }
     
     # Take top 5 flags by score

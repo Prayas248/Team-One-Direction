@@ -1,28 +1,53 @@
-# requirements.txt - Complete dependencies for all 4 stages
+# requirements.txt - PRSE Complete Dependencies
+# Generated from installed packages
 
-# Environment
-python-dotenv==1.0.0
-
-# LLM APIs
-anthropic==0.30.0
-groq==0.4.2
+# Core Framework & API
+Flask==3.1.3
+Streamlit==1.50.0
+requests==2.31.0
 
 # PDF & Text Processing
-pdfplumber==0.11.4
-textstat==0.7.3
+pdfplumber==0.10.3
+textstat==0.7.13
+pdfminer.six==20221105
+
+# Machine Learning & NLP
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.6.1
+sentence-transformers==2.3.1
+transformers==4.57.6
+torch==2.8.0
+safetensors==0.7.0
+tokenizers==0.22.2
 
 # Vector Databases & Search
 chromadb==0.4.22
 chroma-hnswlib==0.7.3
+hnswlib==0.8.1
 
-# ML & NLP
-numpy==1.26.4
-scipy==1.13.1
-scikit-learn==1.5.0
-sentence-transformers==2.3.1
+# LLM APIs
+groq==1.0.0
+python-dotenv==1.0.0
+
+# Web & Async
+FastAPI==0.128.8
+uvicorn==0.39.0
+httpx==0.28.1
+httpcore==1.0.9
+
+# Data & Serialization
+pandas==2.3.3
+orjson==3.11.5
+protobuf==6.33.6
+pyarrow==21.0.0
 
 # Utilities
-requests==2.32.3
+click==8.1.8
+Jinja2==3.1.6
+markdown-it-py==3.0.0
+rich==15.0.0
+Pygments==2.20.0
 
 # Testing
 pytest==8.1.1
