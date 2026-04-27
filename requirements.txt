@@ -35,6 +35,7 @@ FastAPI
 uvicorn
 httpx
 httpcore
+gunicorn
 
 # Data & Serialization
 pandas
