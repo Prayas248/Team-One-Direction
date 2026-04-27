@@ -2,55 +2,55 @@
 # Generated from installed packages
 
 # Core Framework & API
-Flask==3.1.3
-Streamlit==1.50.0
-requests==2.31.0
+Flask
+Streamlit>=1.30.0
+requests
 
 # PDF & Text Processing
-pdfplumber==0.10.3
-textstat==0.7.13
-pdfminer.six==20221105
+pdfplumber
+textstat
+pdfminer.six
 
 # Machine Learning & NLP
-numpy==1.26.4
-scipy==1.13.1
-scikit-learn==1.6.1
-sentence-transformers==2.3.1
-transformers==4.57.6
-torch==2.8.0
-safetensors==0.7.0
-tokenizers==0.22.2
+numpy
+scipy
+scikit-learn
+sentence-transformers
+transformers
+torch
+safetensors
+tokenizers
 
 # Vector Databases & Search
-chromadb==0.4.22
-chroma-hnswlib==0.7.3
-hnswlib==0.8.1
+chromadb
+chroma-hnswlib
+hnswlib
 
 # LLM APIs
-groq==1.0.0
-python-dotenv==1.0.0
+groq
+python-dotenv
 
 # Web & Async
-FastAPI==0.128.8
-uvicorn==0.39.0
-httpx==0.28.1
-httpcore==1.0.9
+FastAPI
+uvicorn
+httpx
+httpcore
 
 # Data & Serialization
-pandas==2.3.3
-orjson==3.11.5
-protobuf==6.33.6
-pyarrow==21.0.0
+pandas
+orjson
+protobuf
+pyarrow
 
 # Utilities
-click==8.1.8
-Jinja2==3.1.6
-markdown-it-py==3.0.0
-rich==15.0.0
-Pygments==2.20.0
+click
+Jinja2
+markdown-it-py
+rich
+Pygments
 
 # Testing
-pytest==8.1.1
+pytest
 
 # Parallelization
 # (built-in: concurrent.futures)
